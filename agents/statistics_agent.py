@@ -3,33 +3,51 @@ from __future__ import annotations
 
 import pandas as pd
 
+from agents.base import add_trace, run_tasks
 from graph.state import EDAState
 from tools import statistics as stats_tools
 
 
 def statistics_agent(state: EDAState, df: pd.DataFrame) -> dict:
     schema = state.get("schema", {})
-    plan = state.get("execution_plan", [])
     numeric_cols = schema.get("numeric_columns", [])
     categorical_cols = schema.get("categorical_columns", [])
     datetime_cols = schema.get("datetime_columns", [])
     target = schema.get("likely_target_column")
+    focus = target or (numeric_cols[0] if numeric_cols else None)
 
-    results: dict = {}
-    if "correlation" in plan and len(numeric_cols) >= 2:
-        results["correlation"] = stats_tools.correlation_analysis(df, numeric_cols)
-    if "groupby" in plan and categorical_cols and numeric_cols:
-        results["groupby"] = stats_tools.groupby_analysis(df, categorical_cols[0], target or numeric_cols[0])
-    if "time_series" in plan and datetime_cols and numeric_cols:
-        results["time_series"] = stats_tools.time_series_analysis(df, datetime_cols[0], target or numeric_cols[0])
-    if "regression" in plan and target and len(numeric_cols) >= 2:
-        features = [c for c in numeric_cols if c != target]
-        results["regression"] = stats_tools.regression_analysis(df, target, features)
+    def _groupby() -> dict:
+        """Test every usable categorical; report the one whose groups differ most."""
+        candidates = [c for c in categorical_cols if 2 <= df[c].nunique(dropna=True) <= 20][:6]
+        if not candidates:
+            return {"error": "No categorical column with 2-20 levels to compare."}
+        results = [stats_tools.groupby_analysis(df, c, focus) for c in candidates]
+        results = [r for r in results if "error" not in r]
+        if not results:
+            return {"error": "Group comparison failed for every categorical column."}
+        results.sort(key=lambda r: (r.get("difference_test") or {}).get("p_value", 1.0))
+        best = results[0]
+        best["other_groupings"] = [
+            {"group_col": r["group_col"], "p_value": (r.get("difference_test") or {}).get("p_value")} for r in results[1:]
+        ]
+        return best
+
+    handlers = {
+        "correlation": lambda: stats_tools.correlation_analysis(df, numeric_cols),
+        "groupby": _groupby,
+        "time_series": lambda: stats_tools.time_series_analysis(df, datetime_cols[0], focus),
+        "regression": lambda: stats_tools.regression_analysis(df, target, [c for c in numeric_cols if c != target]),
+    }
+    results, completed, errors = run_tasks(state, "statistics", handlers)
 
     statistical_results = dict(state.get("statistical_results", {}))
     statistical_results.update(results)
-    completed = list(state.get("completed_tasks", []))
-    for t in ("correlation", "groupby", "time_series", "regression"):
-        if t in results and t not in completed:
-            completed.append(t)
-    return {"statistical_results": statistical_results, "completed_tasks": completed}
+    failed = [t for t in errors if t in handlers and t not in state.get("task_errors", {})]
+    msg = f"Ran {', '.join(results) or 'nothing'}" + (f"; failed: {', '.join(failed)}" if failed else "") + "."
+    return {
+        "statistical_results": statistical_results,
+        "completed_tasks": completed,
+        "task_errors": errors,
+        "insights_stale": True,
+        "trace": add_trace(state, "statistics", msg, ran=list(results), failed=failed),
+    }

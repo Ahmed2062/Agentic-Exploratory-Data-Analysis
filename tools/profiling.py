@@ -1,10 +1,12 @@
-"""profiling.py -- deterministic profiling/data-quality tools. No LLM
-involvement -- every number here is computed, never generated."""
+"""profiling.py -- deterministic profiling/data-quality tools. Every
+number here is computed, never generated."""
 from __future__ import annotations
 
 from typing import Any
 
 import pandas as pd
+
+MISSING_WARN_PCT = 5.0
 
 
 def profile_dataset(df: pd.DataFrame) -> dict[str, Any]:
@@ -44,11 +46,13 @@ def descriptive_statistics(df: pd.DataFrame, numeric_columns: list[str]) -> dict
         if series.empty:
             continue
         stats[col] = {
+            "count": int(series.count()),
             "mean": round(float(series.mean()), 4),
             "std": round(float(series.std()), 4) if series.count() > 1 else 0.0,
             "min": round(float(series.min()), 4),
             "median": round(float(series.median()), 4),
             "max": round(float(series.max()), 4),
+            "skew": round(float(series.skew()), 4) if series.count() > 2 else 0.0,
         }
     return stats
 
@@ -56,12 +60,21 @@ def descriptive_statistics(df: pd.DataFrame, numeric_columns: list[str]) -> dict
 def data_quality_issues(df: pd.DataFrame, schema: dict[str, Any]) -> list[str]:
     issues: list[str] = []
     missing = missing_value_report(df)
-    if missing["any_missing"]:
-        worst = max(missing["columns_with_missing"].items(), key=lambda kv: kv[1]["missing_pct"])
-        issues.append(f"Column '{worst[0]}' has {worst[1]['missing_pct']}% missing values.")
+    for col, info in sorted(missing["columns_with_missing"].items(), key=lambda kv: -kv[1]["missing_pct"]):
+        if info["missing_pct"] >= MISSING_WARN_PCT or len(issues) == 0:
+            issues.append(f"Column '{col}' has {info['missing_pct']}% missing values.")
     dup = duplicate_report(df)
     if dup["duplicate_row_count"] > 0:
         issues.append(f"{dup['duplicate_row_count']} duplicate rows detected ({dup['duplicate_pct']}%).")
+    for col in df.columns:
+        if df[col].nunique(dropna=True) <= 1:
+            issues.append(f"Column '{col}' is constant and carries no information.")
+    for col in schema.get("numeric_columns", []):
+        s = df[col].dropna()
+        if len(s) > 2 and abs(float(s.skew())) > 2:
+            issues.append(f"Column '{col}' is highly skewed (skew {round(float(s.skew()), 4)}); prefer medians and rank-based tests.")
+    if schema.get("id_columns"):
+        issues.append(f"Identifier columns excluded from analysis: {', '.join(map(str, schema['id_columns']))}.")
     if df.shape[0] < 30:
         issues.append("Dataset has fewer than 30 rows -- statistical tests will have low power.")
     return issues
