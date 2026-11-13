@@ -77,8 +77,11 @@ def build_workflow(df: pd.DataFrame):
     return graph.compile()
 
 
-def initial_state(user_query: str, use_llm: bool = True, demo_drop_tasks: list[str] | None = None) -> EDAState:
+def initial_state(
+    user_query: str, use_llm: bool = True, demo_drop_tasks: list[str] | None = None, preparation_notes: list[str] | None = None
+) -> EDAState:
     return {
+        "preparation_notes": preparation_notes or [],
         "user_query": user_query,
         "use_llm": use_llm,
         "demo_drop_tasks": demo_drop_tasks or [],
@@ -100,8 +103,9 @@ def initial_state(user_query: str, use_llm: bool = True, demo_drop_tasks: list[s
 def stream_eda(df: pd.DataFrame, user_query: str, **kwargs: Any) -> Iterator[tuple[str, dict, EDAState]]:
     """Yields (node_name, node_update, merged_state) after every step, for live UIs.
     No reducers are defined, so merging is a plain dict update -- same as LangGraph's."""
+    df, notes = dataset_tools.prepare_dataframe(df)
     app = build_workflow(df)
-    state = initial_state(user_query, **kwargs)
+    state = initial_state(user_query, preparation_notes=notes, **kwargs)
     for chunk in app.stream(state, config={"recursion_limit": RECURSION_LIMIT}, stream_mode="updates"):
         for node, update in chunk.items():
             state = {**state, **(update or {})}

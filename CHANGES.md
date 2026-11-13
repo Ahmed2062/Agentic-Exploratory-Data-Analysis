@@ -77,3 +77,21 @@
   Committed `__pycache__` files and `.DS_Store` were removed.
 - The UI streams each agent step live and shows the agent trace, the
   Critic rounds, timings, and skipped or failed tasks.
+
+## Unfamiliar datasets (stress-tested on 20+ datasets)
+- **Robust loading:** the delimiter is sniffed (semicolon CSVs work), encodings
+  fall back from UTF-8 to cp1252 and latin-1, and Excel (.xlsx) is supported.
+- **Data preparation with a visible audit trail.** Each change is listed under
+  Data quality:
+  - numbers stored as text (`$1,234.50`, `(12.00)`, `45%`, European `1.234,50`)
+    are converted;
+  - infinite values become missing;
+  - dates are parsed with one format per column. Element-by-element parsing
+    silently read 05/01/2023 as May 1 but 15/01/2023 as 15 January.
+- **Target matching uses whole words.** A column named `a` no longer matches
+  "are". Stems match, so "survival" finds `Survived`.
+- **Class-label targets** (iris species, 0/1 churn) compare features across
+  classes. Regression is skipped for multi-class codes, with the reason shown.
+- **Low-cardinality integers** (Pclass, ratings) can be used as groups.
+- **Only transient errors are retried.** Deterministic pandas/SciPy exceptions
+  were re-run pointlessly, and each retry also re-ran the slow LLM step.

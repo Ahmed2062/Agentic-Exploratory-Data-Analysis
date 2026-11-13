@@ -18,7 +18,7 @@ def profiling_agent(state: EDAState, df: pd.DataFrame) -> dict:
             "missing_values": profiling.missing_value_report(df),
             "duplicates": profiling.duplicate_report(df),
             "descriptive_statistics": profiling.descriptive_statistics(df, numeric_cols),
-            "data_quality_issues": profiling.data_quality_issues(df, schema),
+            "data_quality_issues": state.get("preparation_notes", []) + profiling.data_quality_issues(df, schema),
         }
 
     results, completed, errors = run_tasks(state, "profiling", {"profiling": _profile})

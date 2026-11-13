@@ -76,9 +76,12 @@ def groupby_analysis(df: pd.DataFrame, group_col: str, value_col: str) -> dict[s
     grouped = grouped.sort_values("mean", ascending=False)
     samples = [g[value_col].values for _, g in sub.groupby(group_col) if len(g) >= 2]
     test = None
-    if len(samples) >= 2:
-        h, p = scipy_stats.kruskal(*samples)  # rank-based: robust to skew/outliers
-        test = {"test": "kruskal_wallis", "h_statistic": round(float(h), 4), "p_value": _sig(p), "significant": bool(p < ALPHA)}
+    if len(samples) >= 2 and sub[value_col].nunique() > 1:
+        try:
+            h, p = scipy_stats.kruskal(*samples)  # rank-based: robust to skew/outliers
+            test = {"test": "kruskal_wallis", "h_statistic": round(float(h), 4), "p_value": _sig(p), "significant": bool(p < ALPHA)}
+        except ValueError:
+            test = None
     return {
         "group_col": group_col,
         "value_col": value_col,

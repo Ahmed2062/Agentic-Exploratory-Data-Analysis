@@ -7,8 +7,9 @@ Every planned task ends a round in exactly one bucket:
 
 A tool returning {"error": ...} is a *precondition* failure on this data:
 re-running identical deterministic code can't fix it, so it's
-non-retryable. An unexpected exception might be transient, so it's
-retryable (bounded by MAX_RETRIES).
+non-retryable. The same holds for most exceptions from pandas/SciPy code,
+so only genuinely transient errors (memory, I/O, timeouts) are retried --
+a pointless retry would also re-run the slow LLM insight step.
 """
 from __future__ import annotations
 
@@ -19,6 +20,7 @@ from agents.tasks import TASK_AGENT
 from graph.state import EDAState
 
 logger = logging.getLogger(__name__)
+TRANSIENT_ERRORS = (MemoryError, TimeoutError, OSError)
 
 
 def pending_tasks(state: EDAState, agent: str) -> list[str]:
@@ -55,7 +57,7 @@ def run_tasks(
             out = handler()
         except Exception as exc:  # noqa: BLE001
             logger.exception("Task %s crashed", task)
-            errors[task] = {"error": f"{type(exc).__name__}: {exc}", "retryable": True}
+            errors[task] = {"error": f"{type(exc).__name__}: {exc}", "retryable": isinstance(exc, TRANSIENT_ERRORS)}
             continue
         if isinstance(out, dict) and "error" in out:
             errors[task] = {"error": out["error"], "retryable": False}

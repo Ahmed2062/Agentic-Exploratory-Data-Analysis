@@ -14,6 +14,7 @@ class EDAState(TypedDict, total=False):
     user_query: str
     use_llm: bool
     demo_drop_tasks: list[str]          # fault injection for live demos
+    preparation_notes: list[str]        # what data cleaning changed
 
     # planning
     schema: dict[str, Any]

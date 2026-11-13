@@ -16,6 +16,7 @@ import streamlit as st
 from agents.critic_agent import MAX_RETRIES
 from agents.llm import OLLAMA_MODEL, ollama_available
 from graph.workflow import stream_eda
+from tools.dataset import load_table
 
 SAMPLE_PATH = Path(__file__).parent / "data" / "sample_sales.csv"
 SAMPLE_QUESTIONS = [
@@ -66,14 +67,14 @@ st.caption("Ask a question about a CSV. A Supervisor plans the analysis, special
 
 st.subheader("Dataset")
 c1, c2 = st.columns([3, 1])
-uploaded = c1.file_uploader("Upload a CSV", type=["csv"], label_visibility="collapsed")
+uploaded = c1.file_uploader("Upload a CSV or Excel file", type=["csv", "tsv", "txt", "xlsx"], label_visibility="collapsed")
 if uploaded is not None and st.session_state.df_name != uploaded.name:
     try:
-        st.session_state.df = pd.read_csv(uploaded)
+        st.session_state.df = load_table(uploaded.getvalue(), uploaded.name)
         st.session_state.df_name = uploaded.name
         st.session_state.result = None
     except Exception as exc:  # noqa: BLE001
-        st.error(f"Couldn't read that file as CSV: {exc}")
+        st.error(f"Couldn't read {uploaded.name}. Save it as CSV (UTF-8) or .xlsx and try again. Details: {exc}")
 if c2.button("Use sample sales data", use_container_width=True, disabled=not SAMPLE_PATH.exists()):
     st.session_state.df = pd.read_csv(SAMPLE_PATH)
     st.session_state.df_name = SAMPLE_PATH.name
@@ -84,7 +85,7 @@ if df is not None:
     st.write(f"**{st.session_state.df_name}**: {df.shape[0]:,} rows, {df.shape[1]} columns")
     st.dataframe(df.head(), use_container_width=True)
 else:
-    st.write("Upload a CSV or load the sample data to begin.")
+    st.write("Upload a CSV or Excel file, or load the sample data, to begin.")
 
 st.subheader("Question")
 cols = st.columns(len(SAMPLE_QUESTIONS))

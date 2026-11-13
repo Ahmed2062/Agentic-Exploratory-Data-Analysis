@@ -8,4 +8,5 @@ matplotlib==3.9.2
 langgraph==0.2.39
 langchain-ollama==0.2.0
 python-dotenv==1.0.1
+openpyxl==3.1.5         # reading .xlsx uploads
 pytest==8.3.3

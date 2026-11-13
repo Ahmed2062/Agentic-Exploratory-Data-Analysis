@@ -1,6 +1,6 @@
 # Agentic EDA
 
-Upload a CSV, ask a question in plain English, and get a verified,
+Upload a CSV or Excel file, ask a question in plain English, and get a verified,
 evidence-backed exploratory data analysis report. A LangGraph multi-agent
 pipeline plans the analysis, computes it with pandas, SciPy and
 scikit-learn, and has a deterministic Critic check every claim before the
@@ -85,7 +85,7 @@ missing anomaly evidence and the Supervisor re-plan.
 pytest -q
 ```
 
-The 24 tests cover the tools, recovery of the planted signal, the
+The 36 tests cover the tools, messy real-world inputs, recovery of the planted signal, the
 grounding checks, targeted re-planning, and LLM hallucination handling. A
 fake LLM invents numbers, and the tests check that it is caught,
 regenerated with feedback, and fails closed. Tests never need Ollama.

@@ -23,10 +23,12 @@ def visualization_agent(state: EDAState, df: pd.DataFrame) -> dict:
         charts = []
         if focus:
             charts.append(viz_tools.create_histogram(df, focus))
+        # plot exactly the comparison the statistics agent chose
         gb = state.get("statistical_results", {}).get("groupby") or {}
         group_col = gb.get("group_col") or best_group_column(df, categorical_cols)
-        if group_col and focus:
-            charts.append(viz_tools.create_boxplot(df, focus, group_col))
+        value_col = gb.get("value_col") or focus
+        if group_col and value_col and group_col != value_col:
+            charts.append(viz_tools.create_boxplot(df, value_col, group_col))
         if len(numeric_cols) >= 2:
             charts.append(viz_tools.create_heatmap(df, numeric_cols))
 

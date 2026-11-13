@@ -35,6 +35,8 @@ def create_histogram(df: pd.DataFrame, column: str) -> dict[str, Any]:
 def create_boxplot(df: pd.DataFrame, value_col: str, group_col: str | None = None) -> dict[str, Any]:
     if value_col not in df.columns:
         return {"error": f"Column not found: {value_col}"}
+    if group_col == value_col:
+        return {"error": "Grouping and value columns must differ."}
     fig = Figure(figsize=(6, 4))
     ax = fig.subplots()
     if group_col and group_col in df.columns:

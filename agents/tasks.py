@@ -40,8 +40,9 @@ def is_feasible(task: str, schema: dict[str, Any]) -> tuple[bool, str]:
         return False, f"unknown task '{task}'"
     if task == "correlation" and len(numeric) < 2:
         return False, "needs at least 2 numeric columns"
-    if task == "groupby" and not (categorical and numeric):
-        return False, "needs a categorical and a numeric column"
+    discrete = schema.get("discrete_numeric_columns", [])
+    if task == "groupby" and not ((categorical or len(discrete) >= 2 or (discrete and len(numeric) >= 2)) and numeric):
+        return False, "needs a categorical (or low-cardinality integer) column and a numeric column"
     if task == "time_series" and not (datetime_cols and numeric):
         return False, "needs a datetime column and a numeric column"
     if task == "regression":
@@ -49,6 +50,9 @@ def is_feasible(task: str, schema: dict[str, Any]) -> tuple[bool, str]:
             return False, "no target column could be identified"
         if len(numeric) < 2:
             return False, "needs a target plus at least 1 numeric feature"
+        levels = schema.get("discrete_levels", {}).get(target)
+        if levels is not None and levels > 2:
+            return False, f"target '{target}' is a class code with {levels} levels; linear regression would treat categories as quantities"
     if task == "visualization" and not (numeric or datetime_cols):
         return False, "no numeric or datetime columns to plot"
     if task in ("anomaly_iqr", "anomaly_zscore") and not numeric:
