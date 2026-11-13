@@ -18,7 +18,7 @@ You are given ONLY tool-computed statistics. Rules:
 - Every number you write must appear in the input JSON. Copy numbers exactly; never compute, estimate, or round new ones.
 - Separate "fact" (the literal computed result) from "interpretation" (what it plausibly means).
 - Never claim causation. Do not use: causes, due to, because of, leads to, results in, drives. Use "is associated with".
-- Return JSON: {"findings": [{"fact": "...", "interpretation": "...", "source": "<task name>"}]} with 3-6 findings answering the user's question."""
+- Return JSON: {"findings": [{"fact": "...", "interpretation": "...", "source": "<task name>"}]} with 3-4 short findings that answer the user's question."""
 
 VALID_SOURCES = {"profiling", "correlation", "groupby", "time_series", "regression", "anomaly", "consensus"}
 
@@ -101,20 +101,39 @@ def deterministic_findings(state: EDAState) -> list[dict]:
 
 
 def _llm_payload(state: EDAState) -> str:
-    stats = dict(state.get("statistical_results", {}))
-    if "correlation" in stats:
-        stats["correlation"] = {**stats["correlation"], "pairs": stats["correlation"].get("pairs", [])[:10]}
-    anomalies = {k: {kk: vv for kk, vv in v.items() if "indices" not in kk} if isinstance(v, dict) else v
-                 for k, v in state.get("anomalies", {}).items()}
-    profiling = state.get("tool_outputs", {}).get("profiling", {})
-    return json.dumps({
+    """Only the fields a finding could cite. Smaller prompt = faster on CPU,
+    and fewer distracting numbers for the model to misquote."""
+    stats = state.get("statistical_results", {})
+    out: dict = {
         "user_question": state.get("user_query", ""),
         "target_column": state.get("schema", {}).get("likely_target_column"),
-        "profile": profiling.get("profile", {}),
-        "data_quality_issues": profiling.get("data_quality_issues", []),
-        "statistical_results": stats,
-        "anomalies": anomalies,
-    }, default=str)
+        "rows": state.get("schema", {}).get("shape", {}).get("rows"),
+        "data_quality_issues": state.get("tool_outputs", {}).get("profiling", {}).get("data_quality_issues", [])[:3],
+    }
+    pairs = stats.get("correlation", {}).get("pairs", [])
+    if pairs:
+        out["correlations"] = [
+            {k: p[k] for k in ("column_a", "column_b", "r", "spearman_rho", "strength", "significant")} for p in pairs[:5]
+        ]
+    reg = stats.get("regression")
+    if reg and "error" not in reg:
+        out["regression"] = {k: reg[k] for k in ("target_col", "r_squared", "validation", "standardized_coefficients")}
+    gb = stats.get("groupby")
+    if gb and "error" not in gb:
+        out["groups"] = {
+            "group_col": gb["group_col"], "value_col": gb["value_col"],
+            "means": {str(g[gb["group_col"]]): g["mean"] for g in gb["groups"][:6]},
+            "difference_significant": (gb.get("difference_test") or {}).get("significant"),
+        }
+    ts = stats.get("time_series")
+    if ts and "error" not in ts:
+        out["trend"] = {k: ts.get(k) for k in ("value_col", "trend", "periods", "frequency", "pct_change_fitted")}
+    anomalies = state.get("anomalies", {})
+    out["anomalies"] = {
+        m: {"count": r["outlier_count"], "pct": r.get("outlier_pct"), "how": r.get("explanation", "")}
+        for m, r in anomalies.items() if isinstance(r, dict) and "outlier_count" in r
+    }
+    return json.dumps(out, default=str)
 
 
 def _parse(raw: str) -> list[dict]:

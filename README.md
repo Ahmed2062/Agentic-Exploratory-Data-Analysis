@@ -63,7 +63,8 @@ streamlit run app.py
 ```
 
 Optional `.env` settings: `OLLAMA_MODEL`, `OLLAMA_BASE_URL`, `MAX_RETRIES` (default 2),
-`LLM_TIMEOUT_S`, `LLM_DISABLED=1`.
+`LLM_TIMEOUT_S` (default 180), `LLM_MAX_TOKENS` (default 600),
+`LLM_KEEP_ALIVE` (default 30m), `LLM_DISABLED=1`.
 
 ## Demo
 
@@ -84,7 +85,7 @@ missing anomaly evidence and the Supervisor re-plan.
 pytest -q
 ```
 
-The 21 tests cover the tools, recovery of the planted signal, the
+The 24 tests cover the tools, recovery of the planted signal, the
 grounding checks, targeted re-planning, and LLM hallucination handling. A
 fake LLM invents numbers, and the tests check that it is caught,
 regenerated with feedback, and fails closed. Tests never need Ollama.

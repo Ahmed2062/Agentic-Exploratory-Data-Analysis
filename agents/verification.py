@@ -36,6 +36,14 @@ def collect_evidence_numbers(*sources: Any) -> list[float]:
         if isinstance(obj, (int, float)):
             if math.isfinite(float(obj)):
                 found.append(float(obj))
+        elif isinstance(obj, str):
+            # Tools also state numbers in text ("modified Z-score above 3.5").
+            # Tool text is trusted evidence; only LLM text is under test.
+            for m in NUMBER_RE.finditer(obj):
+                try:
+                    found.append(float(m.group(2).replace(",", "")))
+                except ValueError:
+                    pass
         elif isinstance(obj, dict):
             for k, v in obj.items():
                 if any(skip in str(k) for skip in SKIP_KEYS):

@@ -37,7 +37,7 @@ def detect_iqr_outliers(df: pd.DataFrame, column: str, k: float = 1.5) -> dict[s
     lower, upper = q1 - k * iqr, q3 + k * iqr
     idx = df[(df[column] < lower) | (df[column] > upper)].index.tolist()
     return _result(
-        "iqr", df, idx, column=column,
+        "iqr", df, idx, column=column, k=k,
         lower_bound=round(float(lower), 4), upper_bound=round(float(upper), 4),
         explanation=f"Values of {column} outside [{round(float(lower), 2)}, {round(float(upper), 2)}] (1.5x IQR) are flagged.",
     )
@@ -68,7 +68,7 @@ def detect_zscore_outliers(df: pd.DataFrame, column: str, threshold: float = 3.5
     mz = 0.6745 * (series - median) / mad
     idx = series[mz.abs() > threshold].index.tolist()
     return _result(
-        "robust_zscore", df, idx, column=column,
+        "robust_zscore", df, idx, column=column, threshold=threshold,
         explanation=f"Values of {column} with modified Z-score above {threshold} (median/MAD based) are flagged.",
     )
 

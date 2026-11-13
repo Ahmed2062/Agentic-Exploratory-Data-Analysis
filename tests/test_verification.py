@@ -23,3 +23,9 @@ def test_row_indices_are_not_evidence():
 def test_causal_language_flagged_but_negation_allowed():
     assert causal_phrases("Discounts drive units, due to pricing.") == ["drive", "due to"]
     assert causal_phrases("This does not cause churn; it is not driven by price.") == []
+
+
+def test_numbers_stated_in_tool_text_are_evidence():
+    # regression test: 3.5 lives only in the anomaly tool's explanation string
+    evidence = collect_evidence_numbers({"explanation": "modified Z-score above 3.5 (median/MAD based)"})
+    assert ungrounded_numbers("Rows with a modified Z-score above 3.5 were flagged.", evidence) == []

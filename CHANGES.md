@@ -31,6 +31,10 @@
   burn retries.
 - **Coverage check.** If the question asks about anomalies, trends,
   drivers or segments and no such evidence exists, the Critic requests it.
+- **Tool-written text counts as evidence.** Numbers that tools state in prose
+  (for example "modified Z-score above 3.5") are grounded. Found in a live run,
+  where the Critic wrongly rejected a correctly quoted threshold. There is now
+  a regression test for it.
 - **Causal-language check** covers more phrasings and ignores negations.
 - **Fail closed.** If the LLM's findings still fail after the retry
   limit, the report uses deterministic findings and says so.
@@ -59,6 +63,13 @@
 ## Engineering
 - Object-oriented matplotlib `Figure`, so there is no global pyplot state,
   no memory leak, and it is safe across Streamlit sessions.
+- **Fixed a bug from the original code:** text-mode LLM calls passed `format=None`,
+  which the pinned langchain-ollama rejects. Every executive summary silently
+  fell back to the template. Found in a live run because the report step took
+  0 seconds. A regression test now builds the real client in both modes.
+- Compact LLM payload (about 570 tokens, down from about 1,500), 3–4 findings,
+  capped output length, and `keep_alive`, so CPU-only laptops stay fast enough
+  for a live demo.
 - Ollama health check with caching, a request timeout, and an
   `LLM_DISABLED` switch.
 - Pinned `pyarrow` (newer releases need NumPy 2 and broke table rendering).

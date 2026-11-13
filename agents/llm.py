@@ -20,7 +20,9 @@ logger = logging.getLogger(__name__)
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma3:1b")
-LLM_TIMEOUT_S = float(os.getenv("LLM_TIMEOUT_S", "120"))
+LLM_TIMEOUT_S = float(os.getenv("LLM_TIMEOUT_S", "180"))
+LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "600"))
+LLM_KEEP_ALIVE = os.getenv("LLM_KEEP_ALIVE", "30m")  # keep the model loaded between runs
 
 _health_cache: dict[str, float | bool] = {"checked_at": 0.0, "ok": False}
 
@@ -45,14 +47,16 @@ def llm_enabled(state_flag: bool | None = True) -> bool:
     return bool(state_flag) and ollama_available()
 
 
-def call_llm(system_prompt: str, user_prompt: str, json_mode: bool = False) -> str:
+def call_llm(system_prompt: str, user_prompt: str, json_mode: bool = False, max_tokens: int | None = None) -> str:
     from langchain_ollama import ChatOllama
 
     llm = ChatOllama(
         base_url=OLLAMA_BASE_URL,
         model=OLLAMA_MODEL,
         temperature=0.1,
-        format="json" if json_mode else None,
+        format="json" if json_mode else "",  # this langchain-ollama version rejects None
+        num_predict=max_tokens or LLM_MAX_TOKENS,  # on CPU, output length dominates latency
+        keep_alive=LLM_KEEP_ALIVE,
         client_kwargs={"timeout": LLM_TIMEOUT_S},
     )
     response = llm.invoke(
