@@ -112,12 +112,13 @@ def create_time_series_plot(df: pd.DataFrame, date_col: str, value_col: str) -> 
         return {"error": "No parseable dates."}
     span_days = (sub[date_col].max() - sub[date_col].min()).days
     freq, label = ("W", "weekly") if span_days > 60 else ("D", "daily")
-    agg = sub.set_index(date_col)[value_col].resample(freq).mean().dropna()
+    # median, matching the trend test: a few extreme rows shouldn't draw fake spikes
+    agg = sub.set_index(date_col)[value_col].resample(freq).median().dropna()
     fig = Figure(figsize=(7, 4))
     ax = fig.subplots()
     ax.plot(agg.index, agg.values, color="#55A868")
-    ax.set_title(f"{value_col} over time ({label} mean)")
+    ax.set_title(f"{value_col} over time ({label} median)")
     ax.set_ylabel(value_col)
     fig.autofmt_xdate()
     fig.tight_layout()
-    return {"chart_type": "time_series", "figure": fig, "description": f"{label.capitalize()} mean of {value_col} over {date_col}."}
+    return {"chart_type": "time_series", "figure": fig, "description": f"{label.capitalize()} median of {value_col} over {date_col}."}

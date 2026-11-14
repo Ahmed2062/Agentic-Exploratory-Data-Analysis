@@ -95,3 +95,11 @@
 - **Low-cardinality integers** (Pclass, ratings) can be used as groups.
 - **Only transient errors are retried.** Deterministic pandas/SciPy exceptions
   were re-run pointlessly, and each retry also re-ran the slow LLM step.
+
+## Documentation
+- Added `docs/REPORT.md`, a technical report with an architecture diagram,
+  methods and their rationale, evaluation against planted ground truth
+  (anomaly recall and precision per method), a 20-dataset robustness table,
+  performance results and engineering case studies. Charts are in `docs/images/`.
+- The trend chart now plots weekly medians to match the trend test. Means
+  drew spikes from corrupted rows that the test correctly ignored.

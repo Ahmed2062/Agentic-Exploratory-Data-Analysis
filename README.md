@@ -7,6 +7,8 @@ scikit-learn, and has a deterministic Critic check every claim before the
 report is released. Runs fully locally with Streamlit and Ollama, and still
 works with no model at all.
 
+📄 **[Read the full technical report](docs/REPORT.md)**: architecture, methods, evaluation against planted ground truth, and engineering case studies.
+
 **Core rule: the LLM plans and writes prose; tools compute.** Every number
 in the report comes from `tools/`. Numbers the LLM writes are checked
 against tool output, and anything that can't be verified is rejected.
